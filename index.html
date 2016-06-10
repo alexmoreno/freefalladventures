@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Freefall Adventures</title>
+	<!-- <link rel="stylesheet" href="./assets/css/style.css"> -->
+	<script   src="https://code.jquery.com/jquery-3.0.0.js"   integrity="sha256-jrPLZ+8vDxt2FnE1zvZXCkCcebI/C8Dt5xyaQBjxQIo="   crossorigin="anonymous"></script>
+</head>
+<style>
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+
+#game-container{
+	font-family: monospace;
+	border: 1px solid #000;
+	float: left;
+	clear: both;
+	
+}
+#hud1{
+	border-bottom: 1px solid #000;
+	padding: 3px 0px;
+	
+	
+}
+container{
+    float: left;
+    position: relative;
+    border: 1px solid black;
+    margin: 0 auto;
+}
+
+.block{
+	float: left;
+	
+}
+</style>
+<body>
+	<container>
+		<div id="game-container"></div>
+		<div id="hud1">score: <span id="score"></span></div>
+		<div id="hud1">difficult: <span id="difficult"></span> </div>
+		<div id="hud1">[r]estart </div>
+		<div id="hud1">A left - D right </div>
+		<div id="hud1"><a href="http://twitter.com/alexmorenodev" target='_blank'>author</a></div>
+	</container>
+</body>
+<script>
+(()=> {
+	var J = {
+		height: 20,
+		width:  15,
+		internalHeight: 0,
+		emptyChar: '&nbsp;',
+		gameSpeed: 100,
+		score: 0,
+		difficult: 2,
+		lastSeed: null,
+		Player: {
+			x: 0,
+			y: 5,
+			char: '@',
+			title: 'player'
+		},
+
+		reset: () => {
+			
+			
+			J.internalHeight = 0,
+			
+			J.gameSpeed = 100,
+			J.score = 0,
+			J.difficult = 2,
+			J.lastSeed = null,
+			J.Player = {
+				x: 0,
+				y: 5,
+				char: '@',
+				title: 'player'
+			}
+			var id = window.setTimeout(function() {}, 0);
+			while (id--) {
+			    window.clearTimeout(id); // will do nothing if no timeout with id is present
+			}			
+			J.init()
+		},
+
+		init: () => {
+
+			J.generateGrid(J.height, J.width)
+			.drawObstacles()
+			.draw(J.Player.x, J.Player.y, J.Player)	
+			setTimeout(J.fall ,J.gameSpeed)
+			document.onkeydown = J.checkKey;
+		},
+
+		checkKey: (e) => {
+
+		    e = e || window.event;
+
+		    
+		    if (e.keyCode == '65') {
+		       J.moveLeft()
+		    }
+		    else if (e.keyCode == '68') {
+		       // right arrow
+		       J.moveRight()
+		    }   
+		    else if (e.keyCode == '82') {
+		       // right arrow
+		       J.reset()
+		    }
+		},
+
+		moveRight:  () => {
+			if (J.Player.y+1 >= J.width) return J
+				
+				J.replacePosition(J.Player.x, (J.Player.y+1),
+					J.Player.x, J.Player.y,
+					J.Player)
+				J.Player.y++
+				
+			
+			return J
+		},
+
+		moveLeft: () => {
+			nextPosition = J.Player.y-1
+			if (nextPosition < 0 || J.getTitle(J.get(J.Player.x, nextPosition)) == 'floor') return J
+			J.replacePosition(J.Player.x, (J.Player.y-1),
+				J.Player.x, J.Player.y,
+				J.Player)
+			J.Player.y--
+			J.detectColision()
+			return J
+		},
+
+		drawObstacles: () => {
+			var x = J.height,
+			y = J.width, 
+			i,j;
+			for(i=0;i<x;i++){
+				var startObstacles = J.roll(0,2)
+				var freeSpaces = 0;
+				for(j=0;j<y;j++){
+					if (j<startObstacles ) {
+						J.draw(i,j, {char: '#', title:'floor'})		
+					}else{
+						if (freeSpaces >= 11) {
+							J.draw(i,j, {char: '#', title:'floor'})		
+						}
+						freeSpaces++;
+					}
+				}
+			}
+
+			return J
+		},
+
+		drawLastRow: (difficult) => {
+
+			var configs = J.getDifficultValues(J.difficult)
+			var y = J.width; 
+			var x = J.height-1
+			var startObstacles
+			if (J.lastSeed == null) {
+				startObstacles = configs.startObstacles;
+				
+			}else{
+				var d100 = J.roll(0,100)
+				var jump
+				if (d100 < 40) {
+					jump = -1
+				}
+				else if (d100 > 60) {
+					jump = 1
+				}
+				else{
+					jump = 0
+				}
+				if ((J.lastSeed + jump) < 0 || (J.lastSeed + jump) >= (J.width - configs.freeSpaceLimit)) {
+					jump = 0
+				}
+				startObstacles = J.lastSeed + jump
+			}
+			
+			J.lastSeed     = startObstacles;
+			var freeSpaces = 0;
+			for(j=0;j<y;j++){
+				if (j<startObstacles ) {
+					J.draw(x,j, {char: '#', title:'floor'})		
+				}else{
+					if (freeSpaces >= configs.freeSpaceLimit) {
+						J.draw(x,j, {char: '#', title:'floor'})		
+					}
+					
+					//J.draw(x,j, {char: freeSpaces, title:'empty'})		
+					freeSpaces++;
+				}
+			}
+		},
+		getDifficultValues: (difficult) => {
+			var configs = {}
+			if (difficult == 1) {
+				configs = {
+					startObstacles : J.roll(0,2),
+					freeSpaceLimit : 11
+				}
+			}
+			if (difficult == 2) {
+				configs = {
+					startObstacles : J.roll(0,4),
+					freeSpaceLimit : 9
+				}
+			}
+
+			if (difficult == 3) {
+				configs = {
+					startObstacles : J.roll(0,6),
+					freeSpaceLimit : 7
+				}
+			}
+
+
+			if (difficult == 4) {
+				configs = {
+					startObstacles : J.roll(0,8),
+					freeSpaceLimit : 5
+				}
+			}
+			if (difficult == 5) {
+				configs = {
+					startObstacles : J.roll(0,9),
+					freeSpaceLimit : 4
+				}
+			}
+			if (difficult == 6) {
+				configs = {
+					startObstacles : J.roll(0,10),
+					freeSpaceLimit : 3
+				}
+			}
+
+			return configs
+		},
+
+		roll: (min, max) => {
+			return Math.floor(Math.random()*(max-min+1)+min);
+
+		},
+		generateGrid : (x,y) => {
+			var gameContainer = $('#game-container')
+			gameContainer.html('')
+			
+
+			for(i=0;i<x;i++){
+				var row = document.createElement('div');
+				row.id = i;
+				gameContainer.append(row);
+				J.internalHeight++
+				for(j=0;j<y;j++){
+
+
+					var block = document.createElement('div');
+					$(block).attr('id', i+'_'+j).addClass('block').html(J.emptyChar).attr('data-title', 'empty')
+					
+					gameContainer.append(block);
+					
+				}
+				gameContainer.append(document.createElement('br'));
+			}
+			return J
+		},
+		replacePosition : (x, y, dx, dy, obj) =>{
+			$('#'+x+'_'+y).html(obj.char).attr('data-title', obj.title)
+			$('#'+dx+'_'+dy).html(J.emptyChar).attr('data-title', 'empty')
+		},	
+
+		draw : (x, y,  obj) =>{
+			var block = J.get(x,y)
+			block.html(obj.char)
+			if (obj.hasOwnProperty('title')) {
+				block.attr('data-title', obj.title)
+			}
+			
+		},
+
+
+		fall: () => {
+		
+			
+			J.replacePosition((J.Player.x+1), J.Player.y,
+							  J.Player.x, J.Player.y,
+							  J.Player)
+			J.Player.x++;
+			if (J.Player.x > 5) {
+				setTimeout(J.fallScenario, J.gameSpeed)
+			}else{
+				setTimeout(J.fall, J.gameSpeed)
+			}
+			J.gameSpeed--
+			J.score++
+			J.setScore(J.score);
+		},
+		fallScenario: () => {
+			var x = J.height,
+			y = J.width, 
+			i,j;
+			for(i=0;i<x;i++){
+				for(j=0;j<y;j++){
+					var block = J.get(i,j)
+
+
+					if (block.attr('data-title') == 'empty') {
+						continue;
+					}
+					
+					var char = block.html();	
+					if (J.get(i, j).attr('data-title') == 'player') {
+						continue;
+					}
+					J.replacePosition(
+						i-1, j,
+						i, j,
+						{char: char, title: block.attr('data-title')} 
+					)
+				
+				}
+			}
+			J.internalHeight++
+			J.increaseGameSpeed()
+			J.score++
+			J.setScore(J.score);
+			J.setDifficult(J.score)
+			J.drawLastRow()
+			if(J.detectColision()){
+
+			}else{
+				setTimeout(J.fallScenario, J.gameSpeed)
+			}
+		},
+		increaseGameSpeed: () => { 
+			if (J.gameSpeed > 50) {
+				J.gameSpeed = J.gameSpeed - 0.50
+				
+			}
+			return J
+		},
+
+		setDifficult: () => {
+			if (J.score == 100 ||
+				J.score == 200 ||
+				J.score == 350 ||
+				J.score == 500
+				) {
+				J.difficult ++;
+			}
+			$('#difficult').html(J.difficult)
+			if (J.difficult == 6) {
+				$('#difficult').html('MAX')
+			}
+
+		},
+
+
+		setScore: (score) => {
+			$('#score').html(score)
+		},
+		detectColision: () => {
+			var x = J.Player.x+1;
+			var y = J.Player.y;
+			var block = J.get(x,y)
+
+			if (J.getTitle(block) == 'floor') {
+				console.log('O SENHOR MORREU');
+				return true
+			}
+		},
+		get: (x,y) => {
+			return $('#'+x+'_'+y);
+		},
+		getTitle: (el) => {
+			return el.attr('data-title')
+		},
+
+
+	}
+	J.init()
+})()
+	
+
+</script>
+</html>
